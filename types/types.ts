@@ -1,5 +1,7 @@
 interface GraphOptionsObject {
     x: string,
+    xDataType: string,
     y: string,
-    type: string,
+    yDataType: string,
+    graphType: string,
 }

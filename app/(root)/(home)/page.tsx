@@ -1,7 +1,7 @@
 "use client"
 import {useState} from "react";
 import Parser from "@/components/Parser";
-import FileReader, {FileUpload} from "@/components/forms/FileUpload";
+import {FileUpload} from "@/components/forms/FileUpload";
 import GraphOptions from "@/components/forms/GraphOptions";
 import Graph from "@/components/Graph";
 
@@ -10,7 +10,7 @@ export default function Home() {
     const [rawData, setRawData] = useState<string>("");
     const [delimiter, setDelimiter] = useState<string>("");
     const [headers, setHeaders] = useState<string[]>([]);
-    const [data, setData] = useState<object>([]);
+    const [data, setData] = useState<any>([]);
     const [parsingDone, setParsingDone] = useState<boolean>(false);
     const [graphOptions, setGraphOptions] = useState<GraphOptionsObject>();
 
@@ -22,7 +22,7 @@ export default function Home() {
         }
     };
 
-    const handleParsedData = (headers: string[], data: object) => {
+    const handleParsedData = (headers: string[], data: any) => {
         setHeaders(headers)
         setData(data)
         setParsingDone(true)
@@ -42,7 +42,7 @@ export default function Home() {
 
             {parsingDone && !graphOptions &&
                 <GraphOptions headers={headers} data={data} onOptions={handleGraphOptions}/>}
-            {parsingDone && graphOptions && <Graph/>}
+            {parsingDone && graphOptions && <Graph headers={headers} data={data} graphOptions={graphOptions}/>}
         </>
     );
 

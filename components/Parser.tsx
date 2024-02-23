@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 // @ts-ignore
-import Papa, {ParseResult} from 'papaparse'; // Import ParseResult from 'papaparse'
+import Papa, {ParseResult} from 'papaparse';
 
 interface ParserProps {
     rawData: string;
@@ -10,31 +10,50 @@ interface ParserProps {
 }
 
 const Parser: React.FC<ParserProps> = ({rawData, delimiter, onParsed, parsingDone}) => {
-    const [headers, setHeaders] = useState<string[]>([]);
     useEffect(() => {
         if (rawData.length > 0 && !parsingDone) {
-            let skipRows = 0
-            if (rawData.match(/"sep=/)) {
-                const firstLineBreak = rawData.indexOf('\n')
-                rawData = rawData.substring(firstLineBreak + 1, rawData.length)
+            let modifiedData = rawData;
+            if (modifiedData.includes('sep=')) {
+                modifiedData = modifiedData.substring(modifiedData.indexOf('\n') + 1);
             }
-            Papa.parse(rawData, {
+            Papa.parse(modifiedData, {
                 header: true,
-                delimiter: delimiter,
+                delimiter,
                 dynamicTyping: true,
                 complete: (result: ParseResult<Record<string, string>[]>) => {
                     if (result.data && result.data.length > 0) {
-                        const headersArray = Object.keys(result.data[0])
-                        const valuesObject = Object.values(result.data)
-                        onParsed(headersArray, valuesObject)
+                        const headers = Object.keys(result.data[0]);
+                        const values = result.data.map(item =>
+
+                            //TODO: mozda ce pucati ako ne treba mijenjati zarez
+                            Object.entries(item).reduce((acc, [key, value]) => {
+                                if (typeof value === 'string') {
+                                    // Remove commas and replace with dots if present
+                                    const newValue = value.replace(',', '.');
+                                    // Check if the value is a string representing a number after replacing commas
+                                    if (!isNaN(Number(newValue))) {
+                                        // Convert the value to a number
+                                        acc[key] = Number(newValue);
+                                    } else {
+                                        // If not a valid number, keep it as a string
+                                        acc[key] = value;
+                                    }
+                                } else {
+                                    // For non-string values, keep them unchanged
+                                    acc[key] = value;
+                                }
+                                return acc;
+                            }, {})
+                        );
+
+                        onParsed(headers, values);
                     }
                 },
             });
         }
+    }, [rawData, delimiter, onParsed, parsingDone]);
 
-    }, [rawData,delimiter, onParsed, parsingDone]);
-
-    return <></>;
+    return null;
 };
 
 export default Parser;
