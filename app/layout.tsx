@@ -9,14 +9,10 @@ const inter = Inter({
     weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
     variable: '--font-inter'
 })
-const spaceGrotesk = Space_Grotesk({
-    subsets: ['latin'],
-    weight: ['300', '400', '500', '600', '700'],
-    variable: '--font-space-grotesk'
-})
+
 export const metadata: Metadata = {
-    title: 'Devflow',
-    description: 'Developers platform for asking and answering questions',
+    title: 'Graph Generator',
+    description: 'Website for generating graphs from csv files',
     icons: {
         icon: '/assets/images/site-logo.svg'
     }
@@ -29,7 +25,7 @@ export default function RootLayout({
     return (
 
         <html lang="en">
-        <body className={`${inter.variable} ${spaceGrotesk.variable}`}>
+        <body className={`${inter.variable} ${inter.variable} bg-gradient-to-br from-white to-gray-400 tracking-tighter`}>
         <ThemeProvider>
             {children}
         </ThemeProvider>

@@ -1,22 +1,30 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import * as d3 from 'd3';
 import dayjs from "dayjs";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Slider} from "@/components/ui/slider";
 
 interface GraphProps {
     headers: string[];
     data: any;
     graphOptions: GraphOptionsObject;
+    onBackPressed: () => void;
 }
 
-const Graph: React.FC<GraphProps> = ({headers, data, graphOptions}) => {
+const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed}) => {
     const svgRef = useRef<SVGSVGElement>(null);
-    const width = 1000;
-    const height = 500;
+    const [binsCount, setBinsCount] = useState<number>(10);
+
+    const width = graphOptions.graphType === "multiline" ? 1200 : 900
+    const marginRight = graphOptions.graphType === "multiline" ? 300 : 20
+    const height = 700;
     const marginTop = 20;
-    const marginRight = 0;
-    const marginBottom = 70;
+    const marginBottom = 150;
     const marginLeft = 40;
 
+
+    // rewrite this
     let indexNaN = new Set<number>();
 
     const xValues = data.map((item: any, index: number) => {
@@ -35,11 +43,6 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions}) => {
         xValues.splice(index, 1);
         yValues.splice(index, 1);
     });
-
-    const possibleDateFormats = [
-
-        // Add more formats here as needed
-    ];
 
     function detectDateFormat(dateString: string) {
         const formats = [
@@ -62,75 +65,76 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions}) => {
         return ""; // If no format matches
     }
 
-
-    // const parseDate = (timestamp: string) => {
-    //     let parsedDate;
-    //     for (let format of possibleDateFormats) {
-    //         const parser = d3.timeParse(format);
-    //         parsedDate = parser(timestamp);
-    //         if (parsedDate !== null) {
-    //             return parsedDate;
-    //         }
-    //     }
-    //     throw new Error('Unable to parse timestamp');
-    // };
-
-    const dynamicDateFormat = (format: string) => d3.timeParse(format);
     const newKey = 'timeParsed';
 
     let x: any = undefined
-    switch (graphOptions.xDataType) {
-        case "string":
-            x = d3.scaleBand()
-                .domain(xValues)
-                .range([marginLeft, width - marginRight])
-                .padding(0.1);
-            break;
-        case "number":
-            //TODO: scale ako je X number
-            break;
-        case "timestamp":
-            const dateFormat = detectDateFormat(data[0][graphOptions.x])
+    let bins: any = undefined
+    let y: any = undefined
 
-            data.forEach((item: any) => {
-                // Concatenate the dynamic part with some string
-                item[newKey] = d3.timeParse(dateFormat)(item[graphOptions.x])
-                console.log(item[newKey])
-            });
-            graphOptions.x = newKey
+    if (graphOptions.graphType === "histogram") {
+        bins = d3.bin()
+            .thresholds(binsCount) // Use the state variable for the number of bins
+            .value((d) => d[graphOptions.x])
+            (data);
 
-            console.log(data)
-            // x = d3
-            //     .scaleTime()
-            //     .domain([parseDate(xValues[0]), parseDate(xValues[xValues.length - 1])])
-            //     .range([marginLeft, width - marginRight]); // Adjust range as needed
-            x = d3.scaleUtc()
-                // .domain(d3.extent(data, d => d[graphOptions.x]))
-                .domain([data[0][graphOptions.x], data[data.length - 1][graphOptions.x]])
-                .rangeRound([marginLeft, width - marginRight]);
-            break;
+        x = d3.scaleLinear()
+            .domain([bins[0].x0, bins[bins.length - 1].x1])
+            .range([marginLeft, width - marginRight]);
+
+        y = d3.scaleLinear()
+            .domain([0, d3.max(bins, (d) => d.length)])
+            .range([height - marginBottom, marginTop]);
+
+    } else if (graphOptions.graphType === "multiline") {
+        const dateFormat = detectDateFormat(data[0][graphOptions.x])
+        data.forEach((item: any) => {
+            item[newKey] = d3.timeParse(dateFormat)(item[graphOptions.x])
+        });
+        graphOptions.x = newKey
+        x = d3.scaleUtc()
+            .domain([data[0][graphOptions.x], data[data.length - 1][graphOptions.x]])
+            .rangeRound([marginLeft, width - marginRight]);
+
+        const allYValues = graphOptions.y.flatMap(key => Object.values(data).map(obj => obj[key]));
+
+        const [minValue, maxValue] = d3.extent(allYValues)
+
+        y = d3
+            .scaleLinear()
+            .domain([minValue, maxValue])
+            .range([height - marginBottom, marginTop]);
 
 
+    } else {
+        switch (graphOptions.xDataType) {
+            case "string":
+                x = d3.scaleBand()
+                    .domain(xValues)
+                    .range([marginLeft, width - marginRight]);
+                break;
+            case "number":
+                x = d3.scaleLinear()
+                    .domain([Math.min(...xValues), Math.max(...xValues)])
+                    .range([marginLeft, width - marginRight]);
+                break;
+            case "timestamp":
+                const dateFormat = detectDateFormat(data[0][graphOptions.x])
+                data.forEach((item: any) => {
+                    item[newKey] = d3.timeParse(dateFormat)(item[graphOptions.x])
+                });
+                graphOptions.x = newKey
+                x = d3.scaleUtc()
+                    .domain([data[0][graphOptions.x], data[data.length - 1][graphOptions.x]])
+                    .rangeRound([marginLeft, width - marginRight]);
+                break;
+        }
+        y = d3
+            .scaleLinear()
+            .domain([Math.min(...yValues), Math.max(...yValues)])
+            .range([height - marginBottom, marginTop]);
     }
 
-    let y: any = undefined
-    y = d3
-        .scaleLinear()
-        .domain([Math.min(...yValues), Math.max(...yValues)])
-        .range([height - marginBottom, marginTop]); // Adjust range according to your SVG dimensions
-    // switch (graphOptions.yDataType) {
-    //     case "string":
-    //         // TODO: implementiraj kad je y string
-    //         break;
-    //     case "number":
-    //         y = d3
-    //             .scaleLinear()
-    //             .domain([Math.min(...yValues), Math.max(...yValues)])
-    //             .range([height - marginBottom, marginTop]); // Adjust range according to your SVG dimensions
-    //         break;
-    // }
-
-
+    // TODO: moze li y biti string?
     useEffect(() => {
         //TODO: add validation for NaN when X is a number
         const xAxis = d3.axisBottom(x).tickSizeOuter(0);
@@ -142,10 +146,18 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions}) => {
             .attr("viewBox", [0, 0, width, height])
             .attr("style", "max-width: 100%; height: auto;");
 
-
         //TODO: izvuci bar varijablu van switcha
         switch (graphOptions.graphType) {
             case "histogram":
+                svg.append("g")
+                    .attr("fill", "steelblue")
+                    .selectAll()
+                    .data(bins)
+                    .join("rect")
+                    .attr("x", (d) => x(d.x0) + 1)
+                    .attr("width", (d) => x(d.x1) - x(d.x0) - 1)
+                    .attr("y", (d) => y(d.length))
+                    .attr("height", (d) => y(0) - y(d.length));
                 break;
             case "bar":
                 const bar = svg
@@ -160,15 +172,6 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions}) => {
                     .attr('width', x.bandwidth);
                 break;
             case "line":
-                // const line = d3.line()
-                //     .x(d => x(d[graphOptions.x]))
-                //     .y(d => y(d[graphOptions.y]));
-                // svg.append("path")
-                //     .attr("fill", "none")
-                //     .attr("stroke", "steelblue")
-                //     .attr("stroke-width", 1.5)
-                //     .attr("d", line(data));
-
                 svg.append("path")
                     .datum(data)
                     .attr("fill", "none")
@@ -184,54 +187,85 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions}) => {
                     )
 
                 break;
+            case "multiline":
+                const colors = d3.schemeCategory10
+
+                for (let i = 0; i < graphOptions.y.length; i++) {
+                    svg.append("path")
+                        .datum(data)
+                        .attr("fill", "none")
+                        .attr("stroke", colors[i])
+                        .attr("stroke-width", 1.5)
+                        .attr("d", d3.line()
+                            .x(function (d) {
+                                return x(d[graphOptions.x])
+                            })
+                            .y(function (d) {
+                                return y(d[graphOptions.y[i]])
+                            })
+                        );
+
+                    svg.append("circle").attr("cx", width - marginRight + 10).attr("cy", marginTop + marginTop - (i * 15)).attr("r", 6).style("fill", colors[i])
+                    svg.append("text").attr("x", width - marginRight + 20).attr("y", marginTop + marginTop - 16 + (i * 15)).text(graphOptions.y[i]).style("font-size", "13px").attr("alignment-baseline", "middle")
+                }
+
+                break;
         }
 
 
         // Create the axes.
         //TODO: vrijednosti prevelike na x-u
-
-        // const gx = svg.append('g')
-        //     .attr('transform', `translate(0,${height - marginBottom})`)
-        //     .call(d3.axisBottom(x).tickSizeOuter(0))
-
         const gx = svg.append("g")
             .attr("transform", `translate(0,${height - marginBottom})`)
-            .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
+            .call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0))
+
+        const gy = svg.append("g")
+            .attr("transform", `translate(${marginLeft},0)`);
 
         if (graphOptions.graphType === "bar") {
             gx.selectAll("text")
                 .style("text-anchor", "end")
                 .attr("dx", "-.8em")
                 .attr("dy", ".15em")
-                .attr("transform", "rotate(-65)");
+                .attr("transform", "rotate(-65)")
+                .attr("fill", "currentColor")
+                .style("font-size", "13px")
+        } else {
+            gx.call((g) => g.append("text")
+                .attr("x", width - marginRight)
+                .attr("y", marginBottom - 110)
+                .attr("fill", "currentColor")
+                .style("font-size", "13px")
+                .attr("text-anchor", "end")
+                .text(graphOptions.x));
         }
 
-        // const gy = svg
-        //     .append('g')
-        //     .attr('transform', `translate(${marginLeft},0)`)
-        //     .call(d3.axisLeft(y).tickFormat((y) => (y * 100).toFixed()))
-        //     .call((g) => g.select('.domain').remove())
-        //     .call(g => g.append("text")
-        //         .attr("x", -marginLeft)
-        //         .attr("y", 10)
-        //         .attr("fill", "currentColor")
-        //         .attr("text-anchor", "start")
-        //         .text(graphOptions.y)
-        //     )
 
-        const gy = svg.append("g")
-            .attr("transform", `translate(${marginLeft},0)`)
-            .call(d3.axisLeft(y).ticks(height / 40))
-            .call(g => g.select(".domain").remove())
-            .call(g => g.selectAll(".tick line").clone()
-                .attr("x2", width - marginLeft - marginRight)
-                .attr("stroke-opacity", 0.1))
-            .call(g => g.append("text")
-                .attr("x", -marginLeft)
-                .attr("y", 10)
-                .attr("fill", "currentColor")
-                .attr("text-anchor", "start")
-                .text(graphOptions.y));
+        if (graphOptions.graphType === "histogram") {
+            gy.call(d3.axisLeft(y).ticks(height / 40))
+                .call((g) => g.select(".domain").remove())
+                .call((g) => g.append("text")
+                    .attr("x", -marginLeft)
+                    .attr("y", 10)
+                    .attr("fill", "currentColor")
+                    .style("font-size", "13px")
+                    .attr("text-anchor", "start")
+                    .text("Frequency (" + graphOptions.x + ")"));
+        } else {
+            gy.call(d3.axisLeft(y).ticks(height / 40))
+                .call(g => g.select(".domain").remove())
+                .call(g => g.selectAll(".tick line").clone()
+                    .attr("x2", width - marginLeft - marginRight)
+                    .attr("stroke-opacity", 0.1))
+                .call(g => g.append("text")
+                    .attr("x", -marginLeft)
+                    .attr("y", 10)
+                    .attr("fill", "currentColor")
+                    .style("font-size", "13px")
+                    .attr("text-anchor", "start")
+                    .text(graphOptions.y));
+        }
+
 
         // TODO: dodaj sortiranja kod bar grafova
         // const updateChart = (order) => {
@@ -256,12 +290,41 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions}) => {
             svg.selectAll("*").remove();
         };
 
-    }, [data]);
+    }, [data, binsCount]);
+
+    const onBack = () => {
+        onBackPressed()
+    }
+
+    // function handleGraphOptions() = {
+    //
+    // }
+
 
     return (
-        <svg ref={svgRef} width="1920" height="1080">
-            {/* Add appropriate width and height */}
-        </svg>
+        <>
+            <Button
+                type="button"
+                onClick={onBack}
+                className="bg-transparent mb-5 text-xl text-gray-700 hover:bg-gray-200 border-2 border-gray-700 hover:text-gray-700 mr-2">
+                Back
+            </Button>
+            {/*TODO: add slider for histagram*/}
+            {/*<div className="mt-3">*/}
+            {/*    <p>*/}
+            {/*        <label>Bins</label>*/}
+            {/*        <Slider*/}
+            {/*            defaultValue={[10]}*/}
+            {/*            min={1}*/}
+            {/*            max={data.length}*/}
+            {/*            onChange={(e) => console.log(e)}*/}
+            {/*        />*/}
+            {/*    </p>*/}
+            {/*</div>*/}
+            <svg ref={svgRef} width="1920" height="1080">
+                {/* Add appropriate width and height */}
+            </svg>
+        </>
     );
 };
 
