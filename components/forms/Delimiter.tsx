@@ -52,7 +52,8 @@ export const Delimiter: React.FC<FileUploadProps> = ({onDelimiterSet, onBackPres
                             Back
                         </Button>
                         <Button type="submit"
-                                className="bg-transparent mt-5 text-xl text-gray-700 hover:bg-gray-300 border-2 border-gray-700 hover:text-gray-700">Next</Button>
+                                className="bg-transparent mt-5 text-xl text-gray-700 hover:bg-gray-300 border-2 border-gray-700 hover:text-gray-700"
+                        >Next</Button>
 
                     </div>
                 </form>

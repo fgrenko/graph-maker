@@ -16,9 +16,7 @@ interface ParserProps {
 
 const formSchema = z.object({
     x: z.string().min(1),
-    xDataType: z.string().min(1),
     // y: z.array(z.string()),
-    // yDataType: z.array(z.string()),
     graphType: z.string().min(1),
 });
 
@@ -41,11 +39,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
         setIsBarType(graphType === 'bar');
         setIsLineType(graphType === 'line');
         setIsMultilineType(graphType === 'multiline');
-        // Reset form values when graph type changes
-        form.setValue('x', '');
-        form.setValue('xDataType', '');
-        // form.setValue('y', []);
-        // form.setValue('yDataType', []);
+
     }, [form.watch('graphType')]); //TODO: vidi kako napravit efektivnije form.watch
 
     const handleAddOption = () => {
@@ -58,7 +52,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
         setYOptions(newOptions);
     };
 
-    const handleChange = (index, key, value) => {
+    const handleYChange = (index, key, value) => {
         const newOptions = [...yOptions];
         newOptions[index][key] = value;
         setYOptions(newOptions);
@@ -69,9 +63,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
     function onSubmit(values: z.infer<typeof formSchema>) {
         const returnObject: GraphOptionsObject = {
             x: values.x,
-            xDataType: values.xDataType,
             y: yOptions.map((item) => item.y),
-            yDataType: yOptions.map((item) => item.yDataType),
             graphType: values.graphType,
         }
         onOptions(returnObject);
@@ -107,6 +99,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         <SelectItem key="line" value="line">Line</SelectItem>
                                         <SelectItem key="bar" value="bar">Bar</SelectItem>
                                         <SelectItem key="multiline" value="multiline">Multiline</SelectItem>
+                                        <SelectItem key="box-plot" value="box-plot">Box plot</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormDescription>
@@ -143,42 +136,10 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                 </FormItem>
                             )}
                         />
-                        <FormField
-                            control={form.control}
-                            name="xDataType"
-                            render={({field}) => (
-                                <FormItem>
-                                    <FormLabel className="text-xl">X data type</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}
-                                            disabled={!form.watch('graphType')}>
-                                        <FormControl>
-                                            <SelectTrigger className="border-gray-700">
-                                                <SelectValue placeholder="Select data type for X axis"/>
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
-                                            {isHistogramType && (
-                                                <SelectItem key="number" value="number">Number</SelectItem>
-                                            )}
-                                            {(isLineType || isMultilineType) && (
-                                                <>
-                                                    <SelectItem key="timestamp" value="timestamp">Timestamp</SelectItem>
-                                                    <SelectItem key="number" value="number">Number</SelectItem></>
-                                            )}
-                                            {isBarType && (
-                                                <><SelectItem key="timestamp" value="timestamp">Timestamp</SelectItem>
-                                                    <SelectItem key="string" value="string">String</SelectItem>
-                                                    <SelectItem key="number" value="number">Number</SelectItem></>
-                                            )}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>
+                        <span className="text-sm mt-11 ml-2 text-gray-500">
+                            {xDataTypeValue(form.watch('graphType'))}
+                        </span>
 
-                                    </FormDescription>
-                                    <FormMessage/>
-                                </FormItem>
-                            )}
-                        />
                     </div>
 
                     <div>
@@ -188,7 +149,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                 <div className="flex-col">
                                     <FormLabel className="text-xl">Y
                                         value {isMultilineType && "#" + (index + 1)}</FormLabel>
-                                    <Select value={option.y} onValueChange={(e) => handleChange(index, "y", e)}
+                                    <Select value={option.y} onValueChange={(e) => handleYChange(index, "y", e)}
                                             disabled={!form.watch('graphType') || form.watch('graphType') == 'histogram'}
                                             required={form.watch('graphType') !== 'histogram'}>
                                         < FormControl>
@@ -203,28 +164,13 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="ml-2 mr-2 flex-col">
-                                    <FormLabel className="text-xl">Y data
-                                        type {isMultilineType && "#" + (index + 1)}</FormLabel>
-                                    <Select value={option.yDataType}
-                                            onValueChange={(e) => handleChange(index, "yDataType", e)}
-                                            disabled={!form.watch('graphType') || form.watch('graphType') == 'histogram'}
-                                            required={form.watch('graphType') !== 'histogram'}>
-                                        <FormControl>
-                                            <SelectTrigger className="border-gray-700">
-                                                <SelectValue placeholder="Select data type for Y axis"/>
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
-                                            <SelectItem key="timestamp" value="timestamp">Timestamp</SelectItem>
-                                            <SelectItem key="string" value="string">String</SelectItem>
-                                            <SelectItem key="number" value="number">Number</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <span className="text-sm mt-10 ml-2 text-gray-500">
+                            {yDataTypeValue(form.watch('graphType'))}
+                        </span>
                                 {index > 0 && <Button onClick={() => handleRemoveOption(index)}
                                                       type="button"
-                                                      className="bg-transparent mt-7 text-gray-700 hover:bg-gray-200 border border-gray-700 hover:text-gray-700">Remove</Button>}
+                                                      className="bg-transparent mt-7 ml-2 text-gray-700 hover:bg-gray-200 border border-gray-700 hover:text-gray-700">Remove</Button>}
+
                             </div>
 
                         ))}
@@ -251,3 +197,27 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
 };
 
 export default GraphOptions;
+
+
+function xDataTypeValue(type: string) {
+    switch (type) {
+        case "histogram":
+            return "Data type: number";
+        case "bar":
+            return "Data type: string";
+        case "line":
+        case "multiline":
+            return "Data type: timestamp";
+    }
+}
+
+function yDataTypeValue(type: string) {
+    switch (type) {
+        case "histogram":
+            return "";
+        case "bar":
+        case "line":
+        case "multiline":
+            return "Data type: number";
+    }
+}

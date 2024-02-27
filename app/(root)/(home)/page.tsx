@@ -3,8 +3,8 @@ import {useState} from "react";
 import Parser from "@/components/Parser";
 import {FileUpload} from "@/components/forms/FileUpload";
 import GraphOptions from "@/components/forms/GraphOptions";
-import Graph from "@/components/Graph";
 import Delimiter from "@/components/forms/Delimiter";
+import Graph from "@/components/Graph";
 
 export default function Home() {
 
