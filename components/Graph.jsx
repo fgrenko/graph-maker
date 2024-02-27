@@ -16,20 +16,10 @@ const Graph = ({headers, data, graphOptions, onBackPressed}) => {
     const marginBottom = 150;
     const marginLeft = 40;
 
-    let indexNaN = new Set();
-
-    console.log(data)
     //somehow change this
-    const xValues = data.map((item) => {
-        return item[graphOptions.x];
-    });
-    const yValues = data.map((item, index) => {
-        const value = item[graphOptions.y[0]];
-        if (isNaN(value)) {
-            return NaN;
-        }
-        return value;
-    });
+    const xValues = data.map((item) => item[graphOptions.x]);
+
+    const yValues = graphOptions.y.flatMap(key => Object.values(data).map(obj => obj[key]));
 
 
     function detectDateFormat(dateString) {
@@ -84,9 +74,7 @@ const Graph = ({headers, data, graphOptions, onBackPressed}) => {
                 .domain([data[0][graphOptions.x], data[data.length - 1][graphOptions.x]])
                 .rangeRound([marginLeft, width - marginRight]);
 
-            const allYValues = graphOptions.y.flatMap(key => Object.values(data).map(obj => obj[key]));
-
-            const [minValue, maxValue] = d3.extent(allYValues)
+            const [minValue, maxValue] = d3.extent(yValues)
 
             y = d3
                 .scaleLinear()

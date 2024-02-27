@@ -204,6 +204,7 @@ function xDataTypeValue(type: string) {
         case "histogram":
             return "Data type: number";
         case "bar":
+        case "box-plot":
             return "Data type: string";
         case "line":
         case "multiline":
@@ -218,6 +219,7 @@ function yDataTypeValue(type: string) {
         case "bar":
         case "line":
         case "multiline":
+        case "box-plot":
             return "Data type: number";
     }
 }

@@ -12,7 +12,7 @@ interface FileUploadProps {
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({onFileRead}) => {
-    const allowedFileTypes = ['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    const allowedFileTypes = {'text/csv': [], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': []};
     const form = useForm<FormData>({
         defaultValues: {
             file: undefined,
@@ -23,8 +23,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({onFileRead}) => {
         form.setValue('file', acceptedFiles);
     }, []);
 
-    const {getRootProps, getInputProps, acceptedFiles} = useDropzone({onDrop, accept: '.csv, .xlsx'});
-
+    const {getRootProps, getInputProps, acceptedFiles} = useDropzone({
+        onDrop,
+        accept: allowedFileTypes
+    });
     useEffect(() => {
         // Trigger file read when a new file is selected
         if (acceptedFiles.length > 0) {
