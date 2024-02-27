@@ -30,6 +30,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
     const [isLineType, setIsLineType] = useState(false);
     const [isMultilineType, setIsMultilineType] = useState(false);
     const [yOptions, setYOptions] = useState([{y: "", yDataType: ""}]);
+    const [disabledOptions, setDisabledOptions] = useState({x: "", y: []});
 
 
     //Use effect for dynamic setting of selectOptions
@@ -39,8 +40,15 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
         setIsBarType(graphType === 'bar');
         setIsLineType(graphType === 'line');
         setIsMultilineType(graphType === 'multiline');
+        setYOptions([yOptions[0]]);
+
 
     }, [form.watch('graphType')]); //TODO: vidi kako napravit efektivnije form.watch
+
+    // useEffect(() => {
+    //     const disabledOptionsArray = [disabledOptions.x, ...disabledOptions.y];
+    //     console.log(disabledOptionsArray);
+    // }, [disabledOptions]);
 
     const handleAddOption = () => {
         setYOptions([...yOptions, {y: "", yDataType: ""}]);
@@ -50,13 +58,35 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
         const newOptions = [...yOptions];
         newOptions.splice(index, 1);
         setYOptions(newOptions);
+
+        disabledOptions.y.splice(index, 1)
+        setDisabledOptions(disabledOptions => ({
+            ...disabledOptions,
+            y: disabledOptions.y
+        }))
+
     };
 
     const handleYChange = (index, key, value) => {
         const newOptions = [...yOptions];
         newOptions[index][key] = value;
         setYOptions(newOptions);
+
+        disabledOptions.y[index] = value;
+        setDisabledOptions(disabledOptions => ({
+            ...disabledOptions,
+            y: disabledOptions.y
+        }))
+        console.log([...Object.values(disabledOptions)])
+
     };
+
+    const handleXChange = (value) => {
+        setDisabledOptions(disabledOptions => ({
+            ...disabledOptions,
+            x: value
+        }))
+    }
 
 
     //TODO: opcije koji je tip podataka za odredeno polje
@@ -116,7 +146,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                             render={({field}) => (
                                 <FormItem className="mr-2 max-w-[200px]">
                                     <FormLabel className="text-xl">X value</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}
+                                    <Select onValueChange={(e) => handleXChange(e)} defaultValue={field.value}
                                             disabled={!form.watch('graphType')}>
                                         <FormControl>
                                             <SelectTrigger className="border-gray-700">
@@ -125,7 +155,8 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         </FormControl>
                                         <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                             {headers.map((header) => (
-                                                <SelectItem key={header} value={header}>{header}</SelectItem>
+                                                <SelectItem key={header} value={header}
+                                                            disabled={[disabledOptions.x, ...disabledOptions.y].includes(header)}>{header}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -159,7 +190,8 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         </FormControl>
                                         <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                             {headers.map((header) => (
-                                                <SelectItem key={header} value={header}>{header}</SelectItem>
+                                                <SelectItem key={header} value={header}
+                                                            disabled={[disabledOptions.x, ...disabledOptions.y].includes(header)}>{header}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
