@@ -41,14 +41,12 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
         setIsLineType(graphType === 'line');
         setIsMultilineType(graphType === 'multiline');
         setYOptions([yOptions[0]]);
-
+        setDisabledOptions(disabledOptions => ({
+            ...disabledOptions,
+            y: [disabledOptions.y[0]]
+        }))
 
     }, [form.watch('graphType')]); //TODO: vidi kako napravit efektivnije form.watch
-
-    // useEffect(() => {
-    //     const disabledOptionsArray = [disabledOptions.x, ...disabledOptions.y];
-    //     console.log(disabledOptionsArray);
-    // }, [disabledOptions]);
 
     const handleAddOption = () => {
         setYOptions([...yOptions, {y: "", yDataType: ""}]);
@@ -77,7 +75,6 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
             ...disabledOptions,
             y: disabledOptions.y
         }))
-        console.log([...Object.values(disabledOptions)])
 
     };
 
@@ -156,7 +153,8 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                             {headers.map((header) => (
                                                 <SelectItem key={header} value={header}
-                                                            disabled={[disabledOptions.x, ...disabledOptions.y].includes(header)}>{header}</SelectItem>
+                                                    // disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== field.value}
+                                                >{header}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -182,7 +180,8 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         value {isMultilineType && "#" + (index + 1)}</FormLabel>
                                     <Select value={option.y} onValueChange={(e) => handleYChange(index, "y", e)}
                                             disabled={!form.watch('graphType') || form.watch('graphType') == 'histogram'}
-                                            required={form.watch('graphType') !== 'histogram'}>
+                                            required={form.watch('graphType') !== 'histogram'}
+                                    >
                                         < FormControl>
                                             <SelectTrigger className="border-gray-700">
                                                 < SelectValue placeholder="Select label for Y axis"/>
@@ -191,7 +190,8 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                             {headers.map((header) => (
                                                 <SelectItem key={header} value={header}
-                                                            disabled={[disabledOptions.x, ...disabledOptions.y].includes(header)}>{header}</SelectItem>
+                                                    // disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== option.y}
+                                                >{header}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
