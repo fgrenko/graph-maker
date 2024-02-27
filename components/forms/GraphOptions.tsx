@@ -143,8 +143,14 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                             render={({field}) => (
                                 <FormItem className="mr-2 max-w-[200px]">
                                     <FormLabel className="text-xl">X value</FormLabel>
-                                    <Select onValueChange={(e) => handleXChange(e)} defaultValue={field.value}
-                                            disabled={!form.watch('graphType')}>
+                                    <Select
+                                        onValueChange={(e) => {
+                                            handleXChange(e);
+                                            return field.onChange(e);
+                                        }}
+                                        defaultValue={field.value}
+                                        disabled={!form.watch('graphType')}
+                                    >
                                         <FormControl>
                                             <SelectTrigger className="border-gray-700">
                                                 <SelectValue placeholder="Select label for X axis"/>
@@ -153,7 +159,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                             {headers.map((header) => (
                                                 <SelectItem key={header} value={header}
-                                                    // disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== field.value}
+                                                    disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== field.value}
                                                 >{header}</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -190,7 +196,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                             {headers.map((header) => (
                                                 <SelectItem key={header} value={header}
-                                                    // disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== option.y}
+                                                    disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== option.y}
                                                 >{header}</SelectItem>
                                             ))}
                                         </SelectContent>
