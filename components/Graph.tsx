@@ -7,12 +7,12 @@ import {z} from "zod";
 import {useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {Input} from "@/components/ui/input";
 import Statistics from "@/components/Statistics";
 
 interface GraphProps {
     headers: string[];
+    s
     data: any[];
     graphOptions: GraphOptionsObject; // Adjust the type accordingly
     onBackPressed: () => void;
@@ -39,20 +39,12 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
         const [boxPlotStatistics, setBoxPlotStatistics] = useState<StatisticItem[]>([]);
 
         //Graph dimensions
-        const width = graphOptions.graphType === 'multiline' ? 1200 : 900;
-        const marginRight = graphOptions.graphType === 'multiline' ? 300 : 20;
-        const height = 700;
-        const marginTop = 40;
-        const marginBottom = graphOptions.graphType === "bar" ? 150 : 50;
-        const marginLeft = 50;
-
+        const [width, marginRight, height, marginTop, marginBottom, marginLeft] = calculateGraphDimensions(graphOptions, headers, data);
 
         const xValues = data.map((item) => item[graphOptions.x]);
         const yValues = graphOptions.y.flatMap((key: string) => Object.values(data).map((obj) => obj[key]));
 
         const newKey = 'timeParsed';
-
-
         useEffect(() => {
             let x: any = undefined;
             let bins: any = undefined;
@@ -167,29 +159,78 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
 
             const renderMultiline = () => {
                 const colors = d3.schemeCategory10;
+                const maxTextWidth = 100;
+                let lastHeight = marginTop + marginTop;
+
                 for (let i = 0; i < graphOptions.y.length; i++) {
-                    svg
-                        .append('path')
+                    const yValue = graphOptions.y[i];
+                    const yData = data.map(d => d[yValue]);
+                    const exceedMaxWidth = getTextWidth(yValue, '13px') > maxTextWidth;
+
+                    svg.append('path')
                         .datum(data)
                         .attr('fill', 'none')
                         .attr('stroke', colors[i])
                         .attr('stroke-width', 1.5)
-                        .attr('d', d3.line().x((d) => x(d[graphOptions.x])).y((d) => y(d[graphOptions.y[i]])));
-                    svg
-                        .append('circle')
+                        .attr('d', d3.line().x(d => x(d[graphOptions.x])).y((d, idx) => y(yData[idx])));
+
+                    svg.append('circle')
                         .attr('cx', width - marginRight + 10)
-                        .attr('cy', marginTop + marginTop - i * 15)
+                        .attr('cy', lastHeight)
                         .attr('r', 6)
                         .style('fill', colors[i]);
-                    svg
-                        .append('text')
-                        .attr('x', width - marginRight + 20)
-                        .attr('y', marginTop + marginTop - 16 + i * 15)
-                        .text(graphOptions.y[i])
-                        .style('font-size', '13px')
-                        .attr('alignment-baseline', 'middle');
+
+                    if (exceedMaxWidth) {
+                        let line = '';
+                        let lineNumber = 0;
+                        const lineHeight = 15;
+                        const xCoord = width - marginRight + 20;
+                        const words = yValue.split(/\s+/);
+
+                        words.forEach(word => {
+                            const testLine = line + (line === '' ? '' : ' ') + word;
+                            const testWidth = getTextWidth(testLine, '13px');
+                            if (testWidth > maxTextWidth) {
+                                svg.append('text')
+                                    .attr('x', xCoord)
+                                    .attr('y', lastHeight + lineNumber * lineHeight)
+                                    .text(line)
+                                    .style('font-size', '13px')
+                                    .attr('alignment-baseline', 'middle');
+                                line = word;
+                                lineNumber++;
+                            } else {
+                                line = testLine;
+                            }
+                            lastHeight += lineNumber * lineHeight;
+                        });
+
+                        svg.append('text')
+                            .attr('x', xCoord)
+                            .attr('y', lastHeight)
+                            .text(line)
+                            .style('font-size', '13px')
+                            .attr('alignment-baseline', 'middle');
+                        lastHeight += lineHeight;
+                    } else {
+                        svg.append('text')
+                            .attr('x', width - marginRight + 20)
+                            .attr('y', lastHeight)
+                            .text(yValue)
+                            .style('font-size', '13px')
+                            .attr('alignment-baseline', 'middle');
+                        lastHeight += 15;
+                    }
                 }
             };
+
+            function getTextWidth(text, font) {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                context.font = font;
+                return context.measureText(text).width;
+            }
+
 
             const renderBoxPlot = () => {
                 let count = 0;
@@ -447,8 +488,11 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
 
                 <div className="mt-5 flex">
                     <svg ref={svgRef} width="1920" height="1080"
-                         className="mr-5 min-w-[800px] border-2 border-gray-700 relative rounded">
-                        {/* Add appropriate width and height */}
+                         className="mr-5 min-w-[800px] border-2 border-gray-700 relative rounded max-h-[1080px]">
+                        <text x="50%" y="30" text-anchor="middle" font-size="20"
+                              fill="currentColor">
+                            <tspan textLength="400" lengthAdjust="spacingAndGlyphs">{graphOptions.title}</tspan>
+                        </text>
                     </svg>
                     <div
                         className="pl-5 overflow-y-auto border-2 border-gray-700 relative rounded hidden lg:block lg:min-w-[230px] xl:min-w-[600px]">
@@ -461,7 +505,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     {graphOptions.graphType === 'histogram' && <HistogramForm/>}
                 </div>
 
-                <div className="block lg:hidden border-2 border-gray-700 relative rounded px-2 py-2 my-2">
+                <div className="block lg:hidden border-2 border-gray-700 relative rounded px-2 py-2 my-2 max-h-[1080px]">
                     <Statistics graphOptions={graphOptions} data={data} boxPlotStatistics={boxPlotStatistics}/>
                 </div>
 
@@ -490,4 +534,16 @@ function detectDateFormat(dateString: string): string {
     }
 
     return '';
+}
+
+function calculateGraphDimensions(graphOptions: GraphOptionsObject, headers: string[], data: any[]): number[] {
+    const width: number = graphOptions.graphType === "multiline" ? 1000 : 900;
+    const marginRight: number = graphOptions.graphType === "multiline" ? 140 : 20;
+
+    const height = 700;
+    const marginTop = 60;
+    const marginBottom = graphOptions.graphType === "bar" ? 150 : 50;
+    const marginLeft = 50;
+
+    return [width, marginRight, height, marginTop, marginBottom, marginLeft];
 }

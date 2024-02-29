@@ -6,6 +6,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
 import React, {useEffect, useState} from "react";
+import {Input} from "@/components/ui/input";
 
 interface ParserProps {
     headers: string[];
@@ -19,6 +20,7 @@ const formSchema = z.object({
     // y: z.array(z.string()),
     graphType: z.string().min(1),
     sorting: z.string().min(1),
+    title: z.string().max(70),
 });
 
 const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPressed}) => {
@@ -97,6 +99,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
             y: yOptions.map((item) => item.y),
             graphType: values.graphType,
             sorting: values.sorting,
+            title: values.title,
         }
         onOptions(returnObject);
     }
@@ -114,6 +117,24 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
             </span>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="w-2/3 space-y-6 mt-5 text-gray-700">
+                    <FormField
+                        control={form.control}
+                        name="title"
+                        render={({field}) => (
+                            <FormItem className="max-w-[400px]">
+                                <FormLabel className="text-xl">Title</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                    </FormControl>
+                                    <Input className="border-2 border-gray-700 bg-transparent" placeholder="Your graph title" type="text" {...field}/>
+                                </Select>
+                                <FormDescription>
+
+                                </FormDescription>
+                                <FormMessage/>
+                            </FormItem>
+                        )}
+                    />
                     <FormField
                         control={form.control}
                         name="graphType"

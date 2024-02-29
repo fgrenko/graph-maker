@@ -3,6 +3,7 @@ interface GraphOptionsObject {
     y: string[],
     graphType: string,
     sorting: string,
+    title: string,
 }
 interface StatisticItem {
     label: string;
