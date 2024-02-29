@@ -59,7 +59,7 @@ export default function Home() {
 
     return (
         <>
-            <div className="px-10">
+            <div className="px-5">
                 {!parsingDone && !fileSelected && <FileUpload onFileRead={handleFileRead}/>}
                 {!parsingDone && fileSelected &&
                     <Delimiter onDelimiterSet={handleDelimiterSet} onBackPressed={handleNewFileUpload}/>}

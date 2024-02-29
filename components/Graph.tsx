@@ -8,6 +8,8 @@ import {useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {Input} from "@/components/ui/input";
+import Statistics from "@/components/Statistics";
 
 interface GraphProps {
     headers: string[];
@@ -16,29 +18,32 @@ interface GraphProps {
     onBackPressed: () => void;
 }
 
+
 const formSchema = z.object({
     sorting: z.string().min(1),
+    binSize: z.coerce.number().min(1).max(100),
 });
 
 const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed}) => {
         const form = useForm<z.infer<typeof formSchema>>({
             resolver: zodResolver(formSchema),
             defaultValues: {
-                sorting: "0"
+                sorting: "0",
+                binSize: 10,
             }
         });
 
         const svgRef = useRef<SVGSVGElement>(null);
 
-        const [binsCount, setBinsCount] = useState<number>(10);
-        const [barSorting, setBarSorting] = useState("0");
+        const [binSize, setBinSize] = useState<number>(10);
+        const [boxPlotStatistics, setBoxPlotStatistics] = useState<StatisticItem[]>([]);
 
         //Graph dimensions
         const width = graphOptions.graphType === 'multiline' ? 1200 : 900;
         const marginRight = graphOptions.graphType === 'multiline' ? 300 : 20;
         const height = 700;
-        const marginTop = 20;
-        const marginBottom = 150;
+        const marginTop = 40;
+        const marginBottom = graphOptions.graphType === "bar" ? 150 : 50;
         const marginLeft = 50;
 
 
@@ -47,56 +52,76 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
 
         const newKey = 'timeParsed';
 
-        let x: any = undefined;
-        let bins: any = undefined;
-        let y: any = undefined;
-        let xSet: Set<any>;
-
-
-        if (graphOptions.graphType === "histogram") {
-            bins = d3
-                .bin()
-                .thresholds(binsCount)
-                .value((d: any) => d[graphOptions.x])(data);
-
-            x = d3
-                .scaleLinear()
-                .domain([bins[0].x0, bins[bins.length - 1].x1])
-                .range([marginLeft, width - marginRight]);
-
-            y = d3
-                .scaleLinear()
-                .domain([0, d3.max(bins, (d: any) => d.length)])
-                .range([height - marginBottom, marginTop]);
-
-        } else if (graphOptions.graphType === "multiline" || graphOptions.graphType === "line") {
-            const dateFormatMultiline = detectDateFormat(data[0][graphOptions.x]);
-            data.forEach((item: any) => {
-                item[newKey] = d3.timeParse(dateFormatMultiline)(item[graphOptions.x]);
-            });
-            graphOptions.x = newKey;
-            x = d3
-                .scaleUtc()
-                .domain([data[0][graphOptions.x], data[data.length - 1][graphOptions.x]])
-                .rangeRound([marginLeft, width - marginRight]);
-
-        } else if (graphOptions.graphType === "bar") {
-            x = d3.scaleBand().domain(xValues).range([marginLeft, width - marginRight]);
-
-        } else if (graphOptions.graphType === "box-plot") {
-            xSet = new Set(data.map((item) => item[graphOptions.x]));
-            x = d3.scaleBand().domain(xSet).range([marginLeft, width - marginRight]);
-        }
-
-        y = graphOptions.graphType === 'histogram' ? y : (
-            d3.scaleLinear()
-                .domain(d3.extent(yValues))
-                .range([height - marginBottom, marginTop])
-        );
-
 
         useEffect(() => {
+            let x: any = undefined;
+            let bins: any = undefined;
+            let y: any = undefined;
+            let xSet: Set<any>;
+
+            if (graphOptions.graphType === "histogram") {
+                bins = d3
+                    .bin()
+                    .thresholds(binSize)
+                    .value((d: any) => d[graphOptions.x])(data);
+
+                x = d3
+                    .scaleLinear()
+                    .domain([bins[0].x0, bins[bins.length - 1].x1])
+                    .range([marginLeft, width - marginRight]);
+
+                y = d3
+                    .scaleLinear()
+                    .domain([0, d3.max(bins, (d: any) => d.length)])
+                    .range([height - marginBottom, marginTop]);
+
+            } else if (graphOptions.graphType === "multiline" || graphOptions.graphType === "line") {
+                const dateFormatMultiline = detectDateFormat(data[0][graphOptions.x]);
+                data.forEach((item: any) => {
+                    item[newKey] = d3.timeParse(dateFormatMultiline)(item[graphOptions.x]);
+                });
+                graphOptions.x = newKey;
+                x = d3
+                    .scaleUtc()
+                    .domain([data[0][graphOptions.x], data[data.length - 1][graphOptions.x]])
+                    .rangeRound([marginLeft, width - marginRight]);
+
+            } else if (graphOptions.graphType === "bar") {
+                x = d3.scaleBand();
+                switch (graphOptions.sorting) {
+                    case '0':
+                        x.domain(xValues);
+                        break;
+                    case '1':
+                        x.domain(data.sort((a, b) => a[graphOptions.x].localeCompare(b[graphOptions.x])).map((d) => d[graphOptions.x]));
+                        break;
+                    case '2':
+                        x.domain(data.sort((a, b) => b[graphOptions.x].localeCompare(a[graphOptions.x])).map((d) => d[graphOptions.x]));
+                        break;
+                    case '3':
+                        x.domain(data.sort((a, b) => a[graphOptions.y[0]] - b[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
+                        break;
+                    case '4':
+                        x.domain(data.sort((a, b) => b[graphOptions.y[0]] - a[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
+                        break;
+                }
+                x.range([marginLeft, width - marginRight])
+
+            } else if (graphOptions.graphType === "box-plot") {
+                xSet = new Set(data.map((item) => item[graphOptions.x]));
+                x = d3.scaleBand().domain(xSet).range([marginLeft, width - marginRight]);
+            }
+
+            let [min, max] = d3.extent(yValues)
+            min = graphOptions.graphType === "box-plot" ? min - 5 : min;
+            y = graphOptions.graphType === 'histogram' ? y : (
+                d3.scaleLinear()
+                    .domain([min, max])
+                    .range([height - marginBottom, marginTop])
+            );
+
             const xAxis = d3.axisBottom(x).tickSizeOuter(0);
+
             const svg = d3
                 .select(svgRef.current)
                 .attr('width', width)
@@ -168,6 +193,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
 
             const renderBoxPlot = () => {
                 let count = 0;
+                let newBoxPlotStatistics: StatisticItem[] = [];
                 xSet.forEach((set, index) => {
                     const iObjects = data.filter((item) => item[graphOptions.x] === set);
                     const iValues = iObjects.map((item) => item[graphOptions.y]);
@@ -180,6 +206,26 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     const max = q1 + 1.5 * interQuantileRange;
                     const bandWidth = x.bandwidth();
                     const xCoordinate = x(set) + bandWidth / 2;
+                    const mean = d3.mean(iValues);
+                    const deviation = d3.deviation(iValues);
+
+                    const boxPlotStatistic: StatisticItem = {
+                        label: set,
+                        median: median,
+                        q1: q1,
+                        q3: q3,
+                        iqr: interQuantileRange,
+                        minWhisker: min,
+                        maxWhisker: max,
+                        min: Math.min(...iValues),
+                        max: Math.max(...iValues),
+                        mean: d3.mean(iValues),
+                        deviation: deviation,
+                        skew: (3 * (mean - median)) / deviation,
+                        graphType: graphOptions.graphType + "-category",
+                    }
+
+                    newBoxPlotStatistics.push(boxPlotStatistic)
 
                     svg
                         .append('line')
@@ -229,6 +275,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                         .attr('stroke', 'black');
                     count++;
                 });
+                setBoxPlotStatistics(newBoxPlotStatistics);
             };
 
             // Call the appropriate function based on graph type
@@ -254,6 +301,8 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     break;
             }
 
+
+            //Rendering x and y axis
             const gx = svg.append('g').attr('transform', `translate(0,${height - marginBottom})`).call(d3.axisBottom(x).ticks(width / 80).tickSizeOuter(0));
             const gy = svg.append('g').attr('transform', `translate(${marginLeft},0)`);
 
@@ -270,7 +319,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     g
                         .append('text')
                         .attr('x', width - marginRight)
-                        .attr('y', marginBottom - 110)
+                        .attr('y', marginBottom - marginBottom + 40)
                         .attr('fill', 'currentColor')
                         .style('font-size', '13px')
                         .attr('text-anchor', 'end')
@@ -284,8 +333,8 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     .call((g) =>
                         g
                             .append('text')
-                            .attr('x', -marginLeft)
-                            .attr('y', 10)
+                            .attr('x', -marginLeft + 5)
+                            .attr('y', 20)
                             .attr('fill', 'currentColor')
                             .style('font-size', '13px')
                             .attr('text-anchor', 'start')
@@ -304,8 +353,8 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     .call((g) =>
                         g
                             .append('text')
-                            .attr('x', -marginLeft)
-                            .attr('y', 10)
+                            .attr('x', 0)
+                            .attr('y', 30)
                             .attr('fill', 'currentColor')
                             .style('font-size', '13px')
                             .attr('text-anchor', 'start')
@@ -313,37 +362,25 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     );
             }
 
-            if (graphOptions.graphType === 'bar') {
-                switch (barSorting) {
-                    case '0':
-                        x.domain(data.sort((a, b) => a[graphOptions.x].localeCompare(b[graphOptions.x])).map((d) => d[graphOptions.x]));
-                        break;
-                    case '1':
-                        x.domain(data.sort((a, b) => b[graphOptions.x].localeCompare(a[graphOptions.x])).map((d) => d[graphOptions.x]));
-                        break;
-                    case '2':
-                        x.domain(data.sort((a, b) => a[graphOptions.y[0]] - b[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
-                        break;
-                    case '3':
-                        x.domain(data.sort((a, b) => b[graphOptions.y[0]] - a[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
-                        break;
-                }
-
-                const t = svg.transition().duration(750);
-
-                bar.data(data, (d) => d[graphOptions.x])
-                    .order()
-                    .transition(t)
-                    .delay((d, i) => i * 20)
-                    .attr('x', (d) => x(d[graphOptions.x]));
-
-                gx.transition(t).call(xAxis).selectAll('.tick').delay((d, i) => i * 20);
-            }
+            //Sorting of bar graph live (treba dodat switch)
+            // if (graphOptions.graphType === 'bar') {
+            //
+            //
+            //     const t = svg.transition().duration(750);
+            //
+            //     bar.data(data, (d) => d[graphOptions.x])
+            //         .order()
+            //         .transition(t)
+            //         .delay((d, i) => i * 20)
+            //         .attr('x', (d) => x(d[graphOptions.x]));
+            //
+            //     gx.transition(t).call(xAxis).selectAll('.tick').delay((d, i) => i * 20);
+            // }
 
             return () => {
                 svg.selectAll('*').remove();
             };
-        }, [data, binsCount, barSorting]);
+        }, [data, binSize]);
 
 
         const onBack = () => {
@@ -358,70 +395,76 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
             saveSvgAsPng(clonedSvg, 'graph.png');
         };
 
-        const BarForm: React.FC = () => {
-            const handleChange = (value: any) => {
-                setBarSorting(value)
-            };
-
+        const HistogramForm: React.FC = () => {
+            const handleSubmit = (values: z.infer<typeof formSchema>) => {
+                setBinSize(values.binSize)
+            }
             return (
+
                 <>
                     <Form {...form}>
-                        <form className="w-2/3 space-y-6 mt-5 text-gray-700">
+                        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex w-2/3 my-3 text-gray-700">
                             <FormField
                                 control={form.control}
-                                name="sorting"
+                                name="binSize"
                                 render={({field}) => (
-                                    <FormItem className="max-w-[400px]">
-                                        <FormLabel className="text-sm">Sorting</FormLabel>
-                                        <Select onValueChange={(e) => {
-                                            handleChange(e);
-                                            return field.onChange(e);
-                                        }} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger className="border-gray-700">
-                                                    <SelectValue placeholder="Select graph type"/>
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
-                                                <SelectItem key="0" value="0"> Default</SelectItem>
-                                                <SelectItem key="1" value="1">Alphabetical</SelectItem>
-                                                <SelectItem key="2" value="2">Frequency, ascending</SelectItem>
-                                                <SelectItem key="3" value="3">Frequency, descending</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                    <FormItem className="max-w-[100px]">
+                                        <FormLabel className="text-sm">Bin size</FormLabel>
+                                        <Input className="border-gray-700" type="number" {...field} />
                                         <FormDescription>
 
                                         </FormDescription>
                                         <FormMessage/>
                                     </FormItem>
                                 )}/>
+
+                            <Button type="submit"
+                                    className="ml-2 mt-8 bg-transparent text-sm text-gray-700 hover:bg-gray-300 border-2 border-gray-700 hover:text-gray-700"
+                            >Submit</Button>
                         </form>
-                    </Form></>
-            );
+                    </Form></>);
+
         };
 
         return (
             <>
-                <Button
-                    type="button"
-                    onClick={onBack}
-                    className="bg-transparent mb-5 text-xl text-gray-700 hover:bg-gray-200 border-2 border-gray-700 hover:text-gray-700 mr-2"
-                >
-                    Back
-                </Button>
-                <Button
-                    type="button"
-                    onClick={onDownload}
-                    className="bg-transparent mb-5 text-xl text-gray-700 hover:bg-gray-200 border-2 border-gray-700 hover:text-gray-700 mr-2"
-                >
-                    Download
-                </Button>
+                <div>
+                    <Button
+                        type="button"
+                        onClick={onBack}
+                        className="bg-transparent text-xl text-gray-700 hover:bg-gray-200 border-2 border-gray-700 hover:text-gray-700 mr-2"
+                    >
+                        Back
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={onDownload}
+                        className="text-gray-300 text-xl bg-gray-700 hover:bg-gray-200 border-2 border-gray-700 hover:text-gray-700 mr-2"
+                    >
+                        Download
+                    </Button>
+                </div>
 
-                {graphOptions.graphType === 'bar' && <BarForm/>}
+                <div className="mt-5 flex">
+                    <svg ref={svgRef} width="1920" height="1080"
+                         className="mr-5 min-w-[800px] border-2 border-gray-700 relative rounded">
+                        {/* Add appropriate width and height */}
+                    </svg>
+                    <div
+                        className="pl-5 overflow-y-auto border-2 border-gray-700 relative rounded hidden lg:block lg:min-w-[230px] xl:min-w-[600px]">
+                        <Statistics graphOptions={graphOptions} data={data} boxPlotStatistics={boxPlotStatistics}/>
+                    </div>
 
-                <svg ref={svgRef} width="1920" height="1080">
-                    {/* Add appropriate width and height */}
-                </svg>
+                </div>
+
+                <div>
+                    {graphOptions.graphType === 'histogram' && <HistogramForm/>}
+                </div>
+
+                <div className="block lg:hidden border-2 border-gray-700 relative rounded px-2 py-2 my-2">
+                    <Statistics graphOptions={graphOptions} data={data} boxPlotStatistics={boxPlotStatistics}/>
+                </div>
+
             </>
         );
     }

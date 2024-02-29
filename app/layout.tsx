@@ -25,7 +25,7 @@ export default function RootLayout({
     return (
 
         <html lang="en">
-        <body className={`${inter.variable} ${inter.variable} bg-gradient-to-br from-white to-gray-400 tracking-tighter`}>
+        <body className={`${inter.variable} ${inter.variable} min-h-screen bg-gradient-to-br from-white to-gray-500 tracking-tighter`}>
         <ThemeProvider>
             {children}
         </ThemeProvider>

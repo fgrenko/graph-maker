@@ -18,11 +18,15 @@ const formSchema = z.object({
     x: z.string().min(1),
     // y: z.array(z.string()),
     graphType: z.string().min(1),
+    sorting: z.string().min(1),
 });
 
 const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPressed}) => {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
+        defaultValues: {
+            sorting: "0",
+        },
     });
 
     const [isHistogramType, setIsHistogramType] = useState(false);
@@ -92,6 +96,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
             x: values.x,
             y: yOptions.map((item) => item.y),
             graphType: values.graphType,
+            sorting: values.sorting,
         }
         onOptions(returnObject);
     }
@@ -159,7 +164,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                             {headers.map((header) => (
                                                 <SelectItem key={header} value={header}
-                                                    disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== field.value}
+                                                            disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== field.value}
                                                 >{header}</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -196,7 +201,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                         <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                             {headers.map((header) => (
                                                 <SelectItem key={header} value={header}
-                                                    disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== option.y}
+                                                            disabled={[disabledOptions.x, ...disabledOptions.y].includes(header) && header !== option.y}
                                                 >{header}</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -218,6 +223,32 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                             new Y value</Button>}
 
                     </div>
+                    {isBarType && <FormField
+                        control={form.control}
+                        name="sorting"
+                        render={({field}) => (
+                            <FormItem className="max-w-[400px]">
+                                <FormLabel className="text-sm">Sorting</FormLabel>
+                                <Select onValueChange={(e) => field.onChange(e)} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger className="border-gray-700">
+                                            <SelectValue placeholder="Select graph type"/>
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
+                                        <SelectItem key="0" value="0"> Default</SelectItem>
+                                        <SelectItem key="1" value="1">Alphabetical</SelectItem>
+                                        <SelectItem key="2" value="2">Alphabetical, descending</SelectItem>
+                                        <SelectItem key="3" value="3">Frequency, ascending</SelectItem>
+                                        <SelectItem key="4" value="4">Frequency, descending</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>
+
+                                </FormDescription>
+                                <FormMessage/>
+                            </FormItem>
+                        )}/>}
 
 
                     <Button onClick={onBack}
