@@ -7,6 +7,8 @@ import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
 import React, {useEffect, useState} from "react";
 import {Input} from "@/components/ui/input";
+import {detectDateFormat} from "@/utils/dateUtils";
+import graph from "@/components/Graph";
 
 interface ParserProps {
     headers: string[];
@@ -28,6 +30,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
         resolver: zodResolver(formSchema),
         defaultValues: {
             sorting: "0",
+            title: "",
         },
     });
 
@@ -37,6 +40,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
     const [isMultilineType, setIsMultilineType] = useState(false);
     const [yOptions, setYOptions] = useState([{y: "", yDataType: ""}]);
     const [disabledOptions, setDisabledOptions] = useState({x: "", y: []});
+    const [submitError, setSubmitError] = useState('');
 
 
     //Use effect for dynamic setting of selectOptions
@@ -51,6 +55,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
             ...disabledOptions,
             y: [disabledOptions.y[0]]
         }))
+        setSubmitError('');
 
     }, [form.watch('graphType')]); //TODO: vidi kako napravit efektivnije form.watch
 
@@ -94,15 +99,48 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
 
     //TODO: opcije koji je tip podataka za odredeno polje
     function onSubmit(values: z.infer<typeof formSchema>) {
-        const returnObject: GraphOptionsObject = {
+        const graphOptions: GraphOptionsObject = {
             x: values.x,
             y: yOptions.map((item) => item.y),
             graphType: values.graphType,
             sorting: values.sorting,
             title: values.title,
         }
-        onOptions(returnObject);
+
+        const isTimestampType = (value: any) => detectDateFormat(value) !== null;
+
+        try {
+            data.forEach((item) => {
+                if (graphOptions.graphType === "multiline" || graphOptions.graphType === "line") {
+                    if (!isTimestampType(item[graphOptions.x])) {
+                        throw new Error("X axis values are not of type timestamp.");
+                    }
+                    graphOptions.y.forEach((y) => {
+                        if (typeof item[y] !== "number") {
+                            throw new Error("Y axis values are not of type number.");
+                        }
+                    });
+                } else if (graphOptions.graphType === "bar" || graphOptions.graphType === "box-plot") {
+                    if (typeof item[graphOptions.x] !== "string") {
+                        throw new Error("X axis values are not of type string.");
+                    }
+                    if (typeof item[graphOptions.y] !== "number") {
+                        throw new Error("Y axis values are not of type number.");
+                    }
+                } else if (graphOptions.graphType === "histogram") {
+                    if (typeof item[graphOptions.x] !== "number") {
+                        throw new Error("X axis values are not of type number.");
+                    }
+                }
+            });
+
+            // If all validations pass, proceed with submitting options
+            onOptions(graphOptions);
+        } catch (error) {
+            setSubmitError("Error: " + error.message);
+        }
     }
+
 
     const onBack = () => {
         onBackPressed()
@@ -126,7 +164,8 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                     </FormControl>
-                                    <Input className="border-2 border-gray-700 bg-transparent" placeholder="Your graph title" type="text" {...field}/>
+                                    <Input className="border-2 border-gray-700 bg-transparent"
+                                           placeholder="Your graph title" type="text" {...field}/>
                                 </Select>
                                 <FormDescription>
 
@@ -271,7 +310,7 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                             </FormItem>
                         )}/>}
 
-
+                    {submitError && <p className="text-red-600">{submitError}</p>}
                     <Button onClick={onBack}
                             className="bg-transparent mt-5 text-xl text-gray-700 hover:bg-gray-200 border-2 border-gray-700 hover:text-gray-700 mr-2">
                         Back

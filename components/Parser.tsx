@@ -21,15 +21,20 @@ const Parser: React.FC<ParserProps> = ({rawData, delimiter, onParsed, parsingDon
                     delimiter,
                     dynamicTyping: true,
                     complete: (result: ParseResult<Record<string, string>[]>) => {
-                        function convertValues(value) {
+                        function convertValues(value: any) {
                             if (typeof value === 'string') {
+                                // Remove '%' if it's the last character
+                                if (value.endsWith('%')) {
+                                    value = value.slice(0, -1);
+                                }
+                                // Replace ',' with '.' and parse to Number
                                 const newValue = value.replace(',', '.');
                                 return !isNaN(Number(newValue)) ? Number(newValue) : value;
                             } else {
                                 return value;
                             }
-
                         }
+
                         function filterNullValues(item) {
                             return Object.fromEntries(
                                 Object.entries(item).filter(([_, value]) => value !== null).map(([key, value]) => [key, convertValues(value)])

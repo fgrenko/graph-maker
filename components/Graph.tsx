@@ -1,6 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
 import * as d3 from 'd3';
-import dayjs from 'dayjs';
 import {Button} from '@/components/ui/button';
 import {saveSvgAsPng} from 'save-svg-as-png';
 import {z} from "zod";
@@ -9,10 +8,10 @@ import {zodResolver} from "@hookform/resolvers/zod";
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 import {Input} from "@/components/ui/input";
 import Statistics from "@/components/Statistics";
+import {detectDateFormat} from '@/utils/dateUtils'
 
 interface GraphProps {
     headers: string[];
-    s
     data: any[];
     graphOptions: GraphOptionsObject; // Adjust the type accordingly
     onBackPressed: () => void;
@@ -42,8 +41,9 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
         const [width, marginRight, height, marginTop, marginBottom, marginLeft] = calculateGraphDimensions(graphOptions, headers, data);
 
         const xValues = data.map((item) => item[graphOptions.x]);
-        const yValues = graphOptions.y.flatMap((key: string) => Object.values(data).map((obj) => obj[key]));
 
+        const yValues = graphOptions.y.flatMap((key: string) => Object.values(data).map((obj) => obj[key]));
+        console.log(yValues)
         const newKey = 'timeParsed';
         useEffect(() => {
             let x: any = undefined;
@@ -77,6 +77,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     .scaleUtc()
                     .domain([data[0][graphOptions.x], data[data.length - 1][graphOptions.x]])
                     .rangeRound([marginLeft, width - marginRight]);
+
 
             } else if (graphOptions.graphType === "bar") {
                 x = d3.scaleBand();
@@ -491,7 +492,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                          className="mr-5 min-w-[800px] border-2 border-gray-700 relative rounded max-h-[1080px]">
                         <text x="50%" y="30" text-anchor="middle" font-size="20"
                               fill="currentColor">
-                            <tspan textLength="400" lengthAdjust="spacingAndGlyphs">{graphOptions.title}</tspan>
+                            {graphOptions.title}
                         </text>
                     </svg>
                     <div
@@ -515,26 +516,6 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
 ;
 
 export default Graph;
-
-function detectDateFormat(dateString: string): string {
-    const formats: string[] = [
-        '%Y-%m-%d %H:%M:%S.%L',
-        '%Y-%m-%d %H:%M:%S',
-        'YYYY-MM-DDTHH:mm',
-        '%Y-%m-%d',
-        'YYYY-MM-DD',
-        'MM-DD-YYYY',
-        'DD-MM-YYYY',
-    ];
-
-    for (let format of formats) {
-        if (dayjs(dateString, format).isValid()) {
-            return format;
-        }
-    }
-
-    return '';
-}
 
 function calculateGraphDimensions(graphOptions: GraphOptionsObject, headers: string[], data: any[]): number[] {
     const width: number = graphOptions.graphType === "multiline" ? 1000 : 900;
