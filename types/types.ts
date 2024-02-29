@@ -2,6 +2,7 @@ interface GraphOptionsObject {
     x: string,
     y: string[],
     graphType: string,
+    sorting: string,
 }
 interface StatisticItem {
     label: string;

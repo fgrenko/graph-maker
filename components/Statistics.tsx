@@ -10,11 +10,10 @@ interface StatisticsProps {
 
 const Statistics: React.FC<StatisticsProps> = ({graphOptions, data, boxPlotStatistics}) => {
 
-        const allValues = graphOptions.graphType === "histogram" ? [graphOptions.x] : [graphOptions.y]; // Corrected to an array
-
+        const allValues = graphOptions.graphType === "histogram" ? [graphOptions.x] : [...graphOptions.y]; // Corrected to an array
         const statisticsObject = allValues.map((option, key) => {
             const values = data.map((item) => item[option]);
-            const mean = d3.mean(values) as number; // Ensuring the return type as number
+            const mean = d3.mean(values) as number;
             const median = d3.median(values) as number; // Ensuring the return type as number
             const deviation = d3.deviation(values) as number; // Ensuring the return type as number
             const skew = (3 * (mean - median)) / deviation;

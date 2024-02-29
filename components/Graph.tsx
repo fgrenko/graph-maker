@@ -36,7 +36,6 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
         const svgRef = useRef<SVGSVGElement>(null);
 
         const [binSize, setBinSize] = useState<number>(10);
-        const [barSorting, setBarSorting] = useState("0");
         const [boxPlotStatistics, setBoxPlotStatistics] = useState<StatisticItem[]>([]);
 
         //Graph dimensions
@@ -88,7 +87,25 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     .rangeRound([marginLeft, width - marginRight]);
 
             } else if (graphOptions.graphType === "bar") {
-                x = d3.scaleBand().domain(xValues).range([marginLeft, width - marginRight]);
+                x = d3.scaleBand();
+                switch (graphOptions.sorting) {
+                    case '0':
+                        x.domain(xValues);
+                        break;
+                    case '1':
+                        x.domain(data.sort((a, b) => a[graphOptions.x].localeCompare(b[graphOptions.x])).map((d) => d[graphOptions.x]));
+                        break;
+                    case '2':
+                        x.domain(data.sort((a, b) => b[graphOptions.x].localeCompare(a[graphOptions.x])).map((d) => d[graphOptions.x]));
+                        break;
+                    case '3':
+                        x.domain(data.sort((a, b) => a[graphOptions.y[0]] - b[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
+                        break;
+                    case '4':
+                        x.domain(data.sort((a, b) => b[graphOptions.y[0]] - a[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
+                        break;
+                }
+                x.range([marginLeft, width - marginRight])
 
             } else if (graphOptions.graphType === "box-plot") {
                 xSet = new Set(data.map((item) => item[graphOptions.x]));
@@ -345,38 +362,25 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     );
             }
 
-            //Sorting of bar graph
-            if (graphOptions.graphType === 'bar') {
-                switch (barSorting) {
-                    case '0':
-                        x.domain(data.sort((a, b) => a[graphOptions.x].localeCompare(b[graphOptions.x])).map((d) => d[graphOptions.x]));
-                        break;
-                    case '1':
-                        x.domain(data.sort((a, b) => b[graphOptions.x].localeCompare(a[graphOptions.x])).map((d) => d[graphOptions.x]));
-                        break;
-                    case '2':
-                        x.domain(data.sort((a, b) => a[graphOptions.y[0]] - b[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
-                        break;
-                    case '3':
-                        x.domain(data.sort((a, b) => b[graphOptions.y[0]] - a[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
-                        break;
-                }
-
-                const t = svg.transition().duration(750);
-
-                bar.data(data, (d) => d[graphOptions.x])
-                    .order()
-                    .transition(t)
-                    .delay((d, i) => i * 20)
-                    .attr('x', (d) => x(d[graphOptions.x]));
-
-                gx.transition(t).call(xAxis).selectAll('.tick').delay((d, i) => i * 20);
-            }
+            //Sorting of bar graph live (treba dodat switch)
+            // if (graphOptions.graphType === 'bar') {
+            //
+            //
+            //     const t = svg.transition().duration(750);
+            //
+            //     bar.data(data, (d) => d[graphOptions.x])
+            //         .order()
+            //         .transition(t)
+            //         .delay((d, i) => i * 20)
+            //         .attr('x', (d) => x(d[graphOptions.x]));
+            //
+            //     gx.transition(t).call(xAxis).selectAll('.tick').delay((d, i) => i * 20);
+            // }
 
             return () => {
                 svg.selectAll('*').remove();
             };
-        }, [data, binSize, barSorting]);
+        }, [data, binSize]);
 
 
         const onBack = () => {
@@ -389,48 +393,6 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
             const clonedSvg = svgRef.current.cloneNode(true) as SVGSVGElement;
             clonedSvg.setAttribute('style', 'background-color: white');
             saveSvgAsPng(clonedSvg, 'graph.png');
-        };
-
-        const BarForm: React.FC = () => {
-            const handleChange = (value: any) => {
-                setBarSorting(value)
-            };
-
-            return (
-                <div>
-                    <Form {...form}>
-                        <form className="w-2/3 space-y-6 text-gray-700">
-                            <FormField
-                                control={form.control}
-                                name="sorting"
-                                render={({field}) => (
-                                    <FormItem className="max-w-[400px]">
-                                        <FormLabel className="text-sm">Sorting</FormLabel>
-                                        <Select onValueChange={(e) => {
-                                            handleChange(e);
-                                            return field.onChange(e);
-                                        }} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger className="border-gray-700">
-                                                    <SelectValue placeholder="Select graph type"/>
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
-                                                <SelectItem key="0" value="0"> Default</SelectItem>
-                                                <SelectItem key="1" value="1">Alphabetical</SelectItem>
-                                                <SelectItem key="2" value="2">Frequency, ascending</SelectItem>
-                                                <SelectItem key="3" value="3">Frequency, descending</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-
-                                        </FormDescription>
-                                        <FormMessage/>
-                                    </FormItem>
-                                )}/>
-                        </form>
-                    </Form></div>
-            );
         };
 
         const HistogramForm: React.FC = () => {
@@ -496,7 +458,6 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                 </div>
 
                 <div>
-                    {graphOptions.graphType === 'bar' && <BarForm/>}
                     {graphOptions.graphType === 'histogram' && <HistogramForm/>}
                 </div>
 
