@@ -43,13 +43,16 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
         const xValues = data.map((item) => item[graphOptions.x]);
 
         const yValues = graphOptions.y.flatMap((key: string) => Object.values(data).map((obj) => obj[key]));
-        console.log(yValues)
         const newKey = 'timeParsed';
         useEffect(() => {
             let x: any = undefined;
             let bins: any = undefined;
             let y: any = undefined;
             let xSet: Set<any>;
+            let min: number;
+            let max: number;
+            const dataCopy = [...data];
+            [min, max] = d3.extent(yValues)
 
             if (graphOptions.graphType === "histogram") {
                 bins = d3
@@ -62,8 +65,10 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     .domain([bins[0].x0, bins[bins.length - 1].x1])
                     .range([marginLeft, width - marginRight]);
 
+
                 y = d3
                     .scaleLinear()
+                    // @ts-ignore
                     .domain([0, d3.max(bins, (d: any) => d.length)])
                     .range([height - marginBottom, marginTop]);
 
@@ -86,16 +91,16 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                         x.domain(xValues);
                         break;
                     case '1':
-                        x.domain(data.sort((a, b) => a[graphOptions.x].localeCompare(b[graphOptions.x])).map((d) => d[graphOptions.x]));
+                        x.domain(dataCopy.sort((a, b) => a[graphOptions.x].localeCompare(b[graphOptions.x])).map((d) => d[graphOptions.x]));
                         break;
                     case '2':
-                        x.domain(data.sort((a, b) => b[graphOptions.x].localeCompare(a[graphOptions.x])).map((d) => d[graphOptions.x]));
+                        x.domain(dataCopy.sort((a, b) => b[graphOptions.x].localeCompare(a[graphOptions.x])).map((d) => d[graphOptions.x]));
                         break;
                     case '3':
-                        x.domain(data.sort((a, b) => a[graphOptions.y[0]] - b[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
+                        x.domain(dataCopy.sort((a, b) => a[graphOptions.y[0]] - b[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
                         break;
                     case '4':
-                        x.domain(data.sort((a, b) => b[graphOptions.y[0]] - a[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
+                        x.domain(dataCopy.sort((a, b) => b[graphOptions.y[0]] - a[graphOptions.y[0]]).map((d) => d[graphOptions.x]));
                         break;
                 }
                 x.range([marginLeft, width - marginRight])
@@ -103,10 +108,24 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
             } else if (graphOptions.graphType === "box-plot") {
                 xSet = new Set(data.map((item) => item[graphOptions.x]));
                 x = d3.scaleBand().domain(xSet).range([marginLeft, width - marginRight]);
-            }
+                xSet.forEach((set, index) => {
+                    const iObjects = data.filter((item) => item[graphOptions.x] === set);
+                    const iValues = iObjects.map((item) => item[graphOptions.y]);
+                    const data_sorted = iValues.sort(d3.ascending);
+                    const q1 = d3.quantile(data_sorted, 0.25);
+                    const q3 = d3.quantile(data_sorted, 0.75);
+                    const interQuantileRange = q3 - q1;
+                    const minWhisker = q1 - 1.5 * interQuantileRange;
+                    const maxWhisker = q3 + 1.5 * interQuantileRange;
 
-            let [min, max] = d3.extent(yValues)
-            min = graphOptions.graphType === "box-plot" ? min - 5 : min;
+                    if (min > minWhisker) {
+                        min = minWhisker - Math.abs(minWhisker * 0.1)
+                    }
+                    if (max < maxWhisker) {
+                        max = maxWhisker
+                    }
+                });
+            }
             y = graphOptions.graphType === 'histogram' ? y : (
                 d3.scaleLinear()
                     .domain([min, max])
@@ -140,7 +159,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     .append('g')
                     .attr('fill', 'steelblue')
                     .selectAll()
-                    .data(data)
+                    .data(dataCopy)
                     .join('rect')
                     .attr('x', (d) => x(d[graphOptions.x]))
                     .attr('y', (d) => y(d[graphOptions.y]))
@@ -244,8 +263,8 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                     const median = d3.quantile(data_sorted, 0.5);
                     const q3 = d3.quantile(data_sorted, 0.75);
                     const interQuantileRange = q3 - q1;
-                    const min = q1 - 1.5 * interQuantileRange;
-                    const max = q1 + 1.5 * interQuantileRange;
+                    const minWhisker = q1 - 1.5 * interQuantileRange;
+                    const maxWhisker = q3 + 1.5 * interQuantileRange;
                     const bandWidth = x.bandwidth();
                     const xCoordinate = x(set) + bandWidth / 2;
                     const mean = d3.mean(iValues);
@@ -257,8 +276,8 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                         q1: q1,
                         q3: q3,
                         iqr: interQuantileRange,
-                        minWhisker: min,
-                        maxWhisker: max,
+                        minWhisker: minWhisker,
+                        maxWhisker: maxWhisker,
                         min: Math.min(...iValues),
                         max: Math.max(...iValues),
                         mean: d3.mean(iValues),
@@ -269,14 +288,15 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
 
                     newBoxPlotStatistics.push(boxPlotStatistic)
 
+                    //line
                     svg
                         .append('line')
                         .attr('x1', xCoordinate)
                         .attr('x2', xCoordinate)
-                        .attr('y1', y(min))
-                        .attr('y2', y(max))
+                        .attr('y1', y(minWhisker))
+                        .attr('y2', y(maxWhisker))
                         .attr('stroke', 'black');
-
+                    //rectangle
                     svg
                         .append('rect')
                         .attr('x', xCoordinate - 50)
@@ -286,6 +306,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                         .attr('stroke', 'black')
                         .style('fill', '#69b3a2');
 
+                    //median line
                     svg
                         .selectAll('toto')
                         .data([median])
@@ -303,7 +324,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
 
                     svg
                         .selectAll('toto')
-                        .data([min, max])
+                        .data([minWhisker, maxWhisker])
                         .enter()
                         .append('line')
                         .attr('x1', xCoordinate - 20)
@@ -383,16 +404,18 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                             .text('Frequency (' + graphOptions.x + ')')
                     );
             } else {
-                gy.call(d3.axisLeft(y).ticks(height / 40))
-                    .call((g) => g.select('.domain').remove())
-                    .call((g) =>
-                        g
-                            .selectAll('.tick line')
-                            .clone()
-                            .attr('x2', width - marginLeft - marginRight)
-                            .attr('stroke-opacity', 0.1)
-                    )
-                    .call((g) =>
+
+                if (graphOptions.graphType == "multiline") {
+                    gy.call(d3.axisLeft(y).ticks(height / 40))
+                        .call((g) => g.select('.domain').remove())
+                        .call((g) =>
+                            g
+                                .selectAll('.tick line')
+                                .clone()
+                                .attr('x2', width - marginLeft - marginRight)
+                                .attr('stroke-opacity', 0.1)
+                        );
+                    gx.call((g) =>
                         g
                             .append('text')
                             .attr('x', 0)
@@ -402,6 +425,27 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                             .attr('text-anchor', 'start')
                             .text(graphOptions.y)
                     );
+                } else {
+                    gy.call(d3.axisLeft(y).ticks(height / 40))
+                        .call((g) => g.select('.domain').remove())
+                        .call((g) =>
+                            g
+                                .selectAll('.tick line')
+                                .clone()
+                                .attr('x2', width - marginLeft - marginRight)
+                                .attr('stroke-opacity', 0.1)
+                        ).call((g) =>
+                        g
+                            .append('text')
+                            .attr('x', 0)
+                            .attr('y', 30)
+                            .attr('fill', 'currentColor')
+                            .style('font-size', '13px')
+                            .attr('text-anchor', 'start')
+                            .text(graphOptions.y)
+                    );
+                }
+
             }
 
             //Sorting of bar graph live (treba dodat switch)
@@ -490,7 +534,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                 <div className="mt-5 flex">
                     <svg ref={svgRef} width="1920" height="1080"
                          className="mr-5 min-w-[800px] border-2 border-gray-700 relative rounded max-h-[1080px]">
-                        <text x="50%" y="30" text-anchor="middle" font-size="20"
+                        <text x="50%" y="30" textAnchor="middle"
                               fill="currentColor">
                             {graphOptions.title}
                         </text>

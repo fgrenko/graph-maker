@@ -24,11 +24,13 @@ const Parser: React.FC<ParserProps> = ({rawData, delimiter, onParsed, parsingDon
                         function convertValues(value: any) {
                             if (typeof value === 'string') {
                                 // Remove '%' if it's the last character
-                                if (value.endsWith('%')) {
-                                    value = value.slice(0, -1);
+                                let newValue = value.replace(',', '.');
+                                if (newValue.endsWith('%')) {
+                                    newValue = newValue.slice(0, -1);
+                                    newValue = Number(newValue) * 0.01
                                 }
                                 // Replace ',' with '.' and parse to Number
-                                const newValue = value.replace(',', '.');
+
                                 return !isNaN(Number(newValue)) ? Number(newValue) : value;
                             } else {
                                 return value;

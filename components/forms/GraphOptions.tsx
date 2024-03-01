@@ -120,10 +120,14 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                             throw new Error("Y axis values are not of type number.");
                         }
                     });
-                } else if (graphOptions.graphType === "bar" || graphOptions.graphType === "box-plot") {
+                } else if (graphOptions.graphType === "box-plot") {
                     if (typeof item[graphOptions.x] !== "string") {
                         throw new Error("X axis values are not of type string.");
                     }
+                    if (typeof item[graphOptions.y] !== "number") {
+                        throw new Error("Y axis values are not of type number.");
+                    }
+                } else if (graphOptions.graphType === "bar") {
                     if (typeof item[graphOptions.y] !== "number") {
                         throw new Error("Y axis values are not of type number.");
                     }
@@ -297,10 +301,10 @@ const GraphOptions: React.FC<ParserProps> = ({headers, data, onOptions, onBackPr
                                     </FormControl>
                                     <SelectContent className="bg-gray-200 text-gray-700 text-2xl">
                                         <SelectItem key="0" value="0"> Default</SelectItem>
-                                        <SelectItem key="1" value="1">Alphabetical</SelectItem>
-                                        <SelectItem key="2" value="2">Alphabetical, descending</SelectItem>
-                                        <SelectItem key="3" value="3">Frequency, ascending</SelectItem>
-                                        <SelectItem key="4" value="4">Frequency, descending</SelectItem>
+                                        <SelectItem key="1" value="1">X axis, ascending</SelectItem>
+                                        <SelectItem key="2" value="2">X axis, descending</SelectItem>
+                                        <SelectItem key="3" value="3">Y axis, ascending</SelectItem>
+                                        <SelectItem key="4" value="4">Y axis, descending</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormDescription>
