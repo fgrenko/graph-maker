@@ -495,7 +495,7 @@ const Graph: React.FC<GraphProps> = ({headers, data, graphOptions, onBackPressed
                                 name="binSize"
                                 render={({field}) => (
                                     <FormItem className="max-w-[100px]">
-                                        <FormLabel className="text-sm">Bin size</FormLabel>
+                                        <FormLabel className="text-sm">Bins</FormLabel>
                                         <Input className="border-gray-700" type="number" {...field} />
                                         <FormDescription>
 
